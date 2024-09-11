@@ -1,0 +1,6 @@
+ollama
+requests
+python_dotenv 
+ipykernel
+fastapi[standard]
+pydantic
