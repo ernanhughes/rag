@@ -1,6 +1,7 @@
 import sys
 from pathlib import Path
-
+import re
+from urllib.parse import urlparse
 
 def get_default_data_dir(app_name: str) -> Path:
     """
@@ -25,3 +26,17 @@ def get_default_data_dir(app_name: str) -> Path:
 
     data_path = system_paths[sys.platform]
     return data_path
+
+
+def sanitize_filename(title):
+    """Sanitizes a string to be used as a filename."""
+    # Remove any characters that are not alphanumeric, spaces, hyphens, or underscores
+    return re.sub(r"[^\w\s-]", "", title).strip().replace(" ", "_")
+
+def get_filename_from_url(url):
+    # Parse the URL to get the path component
+    parsed_url = urlparse(url)
+    # Get the base name from the URL's path
+    filename = os.path.basename(parsed_url.path)
+    return filename
+

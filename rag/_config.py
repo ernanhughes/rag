@@ -9,7 +9,7 @@ from typing import Any
 from click import UsageError
 from dotenv import load_dotenv
 
-from rag.utils import get_default_data_dir
+from rag._utils import get_default_data_dir
 
 load_dotenv()
 
@@ -28,7 +28,9 @@ DEFAULT_CONFIG = {
     "DATABASE_URL": os.environ.get("DATABASE_URL", "sqlite:///rag.db"),
     "OLLAMA_URL": os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434"),
     "OLLAMA_MODEL": os.environ.get("OLLAMA_MODEL", "llama3.2"),
-    "OLLAMA_EMBEDDING_MODEL": os.environ.get("OLLAMA_EMBEDDING_MODEL", "mxbai-embed-large"),
+    "OLLAMA_EMBEDDING_MODEL": os.environ.get(
+        "OLLAMA_EMBEDDING_MODEL", "mxbai-embed-large"
+    ),
     "DATA_DIR": Path(get_default_data_dir("rag")),
     "LOG_FILE": str(os.environ.get("LOG_FILENAME", "rag.log")),
 }
@@ -82,6 +84,7 @@ appConfig = Config(SUMMARIZER_CONFIG_FOLDER, **DEFAULT_CONFIG)
 
 logging_configured = False
 
+
 def setup_logging(default_level=logging.INFO):
     global logging_configured
     if logging_configured:
@@ -115,5 +118,6 @@ def setup_logging(default_level=logging.INFO):
 
     logging.config.dictConfig(log_config)
     logging_configured = True
+
 
 setup_logging()

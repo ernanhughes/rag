@@ -2,28 +2,13 @@ import re
 from typing import List
 
 import ollama
+import requests
+import json
 
+from rag.config import appConfig
 
-PROMPT = """
-<|im_start|>
-As a world class transcript summarizer, create a bullet point summary of the
-transcript provided.
-
-First include a suitable title for the summary based on the title within the <TITLE> delimiter.
-Then include the bullet point summary of the text within the <TEXT> delimiter.
-
-The format of your response needs to be in markdown formatting. Use "- " for bullet points.
-
-######
-
-<TITLE>
-{title}
-
-<TEXT>
-{chunk}
-<|im_end|>
-"""
-
+import logging
+logger = logging.getLogger(__name__)
 
 class OllamaService:
     def __init__(
@@ -35,7 +20,7 @@ class OllamaService:
 
     def chat_with_model(self, model: str, messages):
         response = ollama.chat(model, messages)
-        print(response)
+        logger.info(response)
         return response
 
     @staticmethod
@@ -69,12 +54,47 @@ class OllamaService:
             " ".join(tokens[i : i + self.window_size])
             for i in range(0, len(tokens) - self.window_size + step, step)
         ]
+        logger.info(chunks)
         return chunks
 
     @staticmethod
     def pull_model(name: str = "llama3.1"):
+        logger.info(f"Pulling model {name}")
         ollama.pull(name)
 
     @staticmethod
     def create_embedding(model: str, text: str):
+        logger.info(f"Creating embedding for {text} with model {model}")
         return ollama.embed(model, text)
+
+    @staticmethod
+    def list_models(ollama_url: str = appConfig.get("OLLAMA_URL")):
+        """List installed models from the Ollama server."""
+        try:
+            # Send a GET request to retrieve the list of installed models
+            url = f"{ollama_url}/api/tags"
+            response = requests.get(url)
+            
+            # Check if the request was successful
+            if response.status_code == 200:
+                # Parse the JSON response
+                models = response.json()
+                logger.info("Installed Ollama Models:")
+                for model in models['models']:
+                    pretty_json = json.dumps(model, indent=4)
+                    logger.info(f'{pretty_json}')
+                return models
+            else:
+                logger.error(f"Failed to retrieve models. Status code: {response.status_code}")
+                logger.error(f"Response: {response.text}")
+                return []
+        
+        except requests.ConnectionError:
+            logger.error("Failed to connect to the Ollama server. Make sure it is running locally and the URL is correct.")
+            return []
+        except json.JSONDecodeError:
+            logger.error("Failed to parse JSON response from Ollama server.")
+            return []
+        except Exception as e:
+            logger.error(f"An error occurred: {e}")
+            return []

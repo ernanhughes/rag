@@ -1,9 +1,8 @@
 import requests
 import time
 import os
-import re
-from urllib.parse import urlparse
 
+from rag._utils import get_filename_from_url, sanitize_filename
 import logging
 logger = logging.getLogger(__name__)
 
@@ -14,13 +13,6 @@ max_results = 5  # Adjust the number of papers you want to download
 output_folder = "data"  # Folder to store downloaded papers
 base_url = "http://export.arxiv.org/api/query?"
 
-
-def _get_filename_from_url(url):
-    # Parse the URL to get the path component
-    parsed_url = urlparse(url)
-    # Get the base name from the URL's path
-    filename = os.path.basename(parsed_url.path)
-    return filename
 
 def fetch_arxiv_papers(search_query, max_results=5):
     """Fetches metadata of papers from arXiv using the API."""
@@ -36,22 +28,17 @@ def parse_paper_links(response_text):
     root = ET.fromstring(response_text)
     papers = []
     for entry in root.findall("{http://www.w3.org/2005/Atom}entry"):
-        title = entry.find("{http://www.w3.org/2005/Atom}title").text
         pdf_link = None
         for link in entry.findall("{http://www.w3.org/2005/Atom}link"):
             if link.attrib.get("title") == "pdf":
                 pdf_link = link.attrib["href"] + ".pdf"
                 break
         if pdf_link:
-            title = _get_filename_from_url(pdf_link)
+            title = get_filename_from_url(pdf_link)
             print(title)
             papers.append((title, pdf_link))
     return papers
 
-def sanitize_filename(title):
-    """Sanitizes a string to be used as a filename."""
-    # Remove any characters that are not alphanumeric, spaces, hyphens, or underscores
-    return re.sub(r'[^\w\s-]', '', title).strip().replace(' ', '_')
 
 def download_paper(title, pdf_link, output_folder):
     """Downloads a single paper PDF."""
@@ -85,6 +72,3 @@ def main(search_query, max_results):
             time.sleep(2)  # Pause to avoid hitting rate limits
         except Exception as e:
             print(f"Failed to download '{title}': {e}")
-
-if __name__ == "__main__":
-    main(search_query, max_results)

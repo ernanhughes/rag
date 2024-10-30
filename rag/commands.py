@@ -33,7 +33,7 @@ def init_db(db, schema):
     default=appConfig.get("DATABASE_PATH"),
     help="File path of the sqlite database to drop.",
 )
-def drop_db(db="summarizer.db"):
+def drop_db(db="rag.db"):
     """Drop the database"""
     click.echo("Dropping the database ...")
     if os.path.isfile(db):
@@ -41,6 +41,13 @@ def drop_db(db="summarizer.db"):
         click.echo(f"Dropped the database:{os.path.abspath(db)}.")
     else:
         click.echo(f"Database {os.path.abspath(db)} not found.")
+
+@click.command()
+def models():
+    """List all models"""
+    click.echo("Installed Ollama Models:")
+    ollama = OllamaService()
+    print(Pretty(ollama.list_models()))
 
 
 @click.command()
@@ -74,3 +81,4 @@ cli.add_command(init_db)
 cli.add_command(drop_db)
 cli.add_command(config)
 cli.add_command(chat)
+cli.add_command(models)
