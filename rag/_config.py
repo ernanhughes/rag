@@ -35,11 +35,52 @@ DEFAULT_CONFIG = {
     "LOG_FILE": str(os.environ.get("LOG_FILENAME", "rag.log")),
 }
 
+logging_configured = False
+
+
+def setup_logging(default_level=logging.INFO):
+    global logging_configured
+    if logging_configured:
+        return
+    log_config = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "standard": {
+                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
+            },
+        },
+        "handlers": {
+            "console": {
+                "level": "DEBUG",
+                "class": "logging.StreamHandler",
+                "formatter": "standard",
+            },
+            "file": {
+                "level": "DEBUG",
+                "class": "logging.FileHandler",
+                "filename": "app.log",
+                "formatter": "standard",
+            },
+        },
+        "root": {
+            "handlers": ["console", "file"],
+            "level": default_level,
+        },
+    }
+
+    logging.config.dictConfig(log_config)
+    logging_configured = True
+
+
+setup_logging()
+logger = logging.getLogger(__name__)
+
 
 class Config(dict):
     def __init__(self, config_path: Path, **defaults: Any):
         self.config_path = config_path
-        print(f"Config path: {config_path}")
+        logger.info(f"Config path: {config_path}")
         if self._exists():
             self._read()
             has_new_config = False
@@ -82,42 +123,3 @@ class Config(dict):
 
 appConfig = Config(SUMMARIZER_CONFIG_FOLDER, **DEFAULT_CONFIG)
 
-logging_configured = False
-
-
-def setup_logging(default_level=logging.INFO):
-    global logging_configured
-    if logging_configured:
-        return
-    log_config = {
-        "version": 1,
-        "disable_existing_loggers": False,
-        "formatters": {
-            "standard": {
-                "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-            },
-        },
-        "handlers": {
-            "console": {
-                "level": "DEBUG",
-                "class": "logging.StreamHandler",
-                "formatter": "standard",
-            },
-            "file": {
-                "level": "DEBUG",
-                "class": "logging.FileHandler",
-                "filename": "app.log",
-                "formatter": "standard",
-            },
-        },
-        "root": {
-            "handlers": ["console", "file"],
-            "level": default_level,
-        },
-    }
-
-    logging.config.dictConfig(log_config)
-    logging_configured = True
-
-
-setup_logging()

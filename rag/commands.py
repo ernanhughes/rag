@@ -4,9 +4,14 @@ import click
 from rich import print
 from rich.pretty import Pretty
 
-from rag.config import appConfig
-from rag.service.ollama_service import OllamaService
-from rag.database import RagDb
+from rag._config import appConfig
+from rag.service._ollama_service import OllamaService
+from rag.service._ingest import IngestService
+from rag._database import RagDb
+
+
+import logging
+logger = logging.getLogger(__name__)
 
 
 @click.command()
@@ -24,6 +29,7 @@ def init_db(db, schema):
     """
     Will generate the sqlite database using the schema file.
     """
+    logger.info(f"Initializing the database at {db} with schema {schema}.")
     RagDb.init_db(db, schema)
 
 
@@ -72,6 +78,16 @@ def chat(model: str, prompt: str, role: str):
     print(response)
 
 
+@click.command()
+@click.option("--folder", default="./data", help="The folder containing the data to ingest.")
+def ingest(folder: str = "./data"):
+    """Ingest a folder with one or more files."""
+    ingest_service = IngestService()
+    logger.info(f"Ingesting folder: {folder}")
+    ingest_service.ingest_folder(folder)
+    logger.info("Ingestion completed.")
+
+
 @click.group()
 def cli():
     pass
@@ -82,3 +98,5 @@ cli.add_command(drop_db)
 cli.add_command(config)
 cli.add_command(chat)
 cli.add_command(models)
+cli.add_command(ingest)
+

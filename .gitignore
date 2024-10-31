@@ -2,7 +2,7 @@
 .idea/
 app.log
 rag.db
-
+data/*.pdf
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

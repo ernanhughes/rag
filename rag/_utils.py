@@ -1,7 +1,10 @@
+import os
 import sys
 from pathlib import Path
 import re
 from urllib.parse import urlparse
+import hashlib
+
 
 def get_default_data_dir(app_name: str) -> Path:
     """
@@ -33,6 +36,7 @@ def sanitize_filename(title):
     # Remove any characters that are not alphanumeric, spaces, hyphens, or underscores
     return re.sub(r"[^\w\s-]", "", title).strip().replace(" ", "_")
 
+
 def get_filename_from_url(url):
     # Parse the URL to get the path component
     parsed_url = urlparse(url)
@@ -40,3 +44,14 @@ def get_filename_from_url(url):
     filename = os.path.basename(parsed_url.path)
     return filename
 
+
+def compute_file_hash(file_path, algorithm="sha256"):
+    """Compute the hash of a file using the specified algorithm."""
+    hash_func = hashlib.new(algorithm)
+
+    with open(file_path, "rb") as file:
+        # Read the file in chunks of 8192 bytes
+        while chunk := file.read(8192):
+            hash_func.update(chunk)
+
+    return hash_func.hexdigest()

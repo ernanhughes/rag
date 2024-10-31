@@ -5,7 +5,7 @@ import ollama
 import requests
 import json
 
-from rag.config import appConfig
+from rag._config import appConfig
 
 import logging
 logger = logging.getLogger(__name__)

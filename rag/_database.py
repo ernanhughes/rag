@@ -2,10 +2,12 @@ import os
 import sqlite3
 from dataclasses import asdict
 from sqlite3 import connect
-
-from rag.config import appConfig
+import sqlite_vec
+from rag._config import appConfig
+from rag._utils import compute_file_hash
 
 import logging
+
 logger = logging.getLogger(__name__)
 
 
@@ -15,32 +17,28 @@ class RagDb:
         self.db_file = db_file
         self.cn = connect(self.db_file)
         self.cur = self.cn.cursor()
+        self.cn.enable_load_extension(True)
+        sqlite_vec.load(self.cn)
+        self.cn.enable_load_extension(False)
 
-
-    def insert_transcript(self, id: str, transcript: list[dict]):
-        sql = """
-            INSERT INTO DOCUMENT_TEXT(
-                path, text_data, start_time, duration
-            ) VALUES (?,?,?,?)
-            """
-        try:
-            for line in transcript:
-                print(line)
-                data = (id, line["text"], float(line["start"]), float(line["duration"]))
-                self.cur.execute(sql, data)
-            self.cn.commit()
-            logger.debug(f"Inserted transcript {id}")
-        except sqlite3.Error as e:
-            print(f"An error occurred: {e}")
-            self.cn.rollback()
-
-    def insert_text(self, id: str, data: str, language: str = "en"):
+    def insert_document(self, file_path: str):
+        file_hash = compute_file_hash(file_path)
         self.cur.execute(
-            "INSERT INTO TRANSCRIPT_TEXT(file_path, language, data) VALUES (:1,:2)",
-            (id, language, data),
+            "INSERT INTO DOCUMENT(file_path, file_hash) VALUES (:1,:2)",
+            (file_path, file_hash),
         )
         self.cn.commit()
-        logger.debug(f"Inserted file {id}")
+        logger.debug(f"Inserted file {file_path}")
+        return self.cur.lastrowid
+
+    def insert_document_text(self, id: str, data: str):
+        self.cur.execute(
+            "INSERT INTO DOCUMENT_TEXT(document_id, data) VALUES (:1,:2)",
+            (id, data),
+        )
+        self.cn.commit()
+        logger.info(f"Inserted document text (length {len(data)}) for {id}")
+
 
     def insert_chat_response(self, response: dict):
         sql = """
@@ -76,20 +74,22 @@ class RagDb:
         db: str = appConfig.get("DATABASE_PATH"),
         schema: str = appConfig.get("SCHEMA_FILE"),
     ):
-        logger.debug("Initializing the database.....")
+        logger.info("Initializing the database.....")
         base_dir = os.path.abspath(os.path.dirname(__file__))
         schema_path = os.path.join(base_dir, schema)
-        logger.debug(f"Db path: {db}")
-        logger.debug(f"Schema path: {schema_path}")
+        logger.info(f"Db path: {db}")
+        logger.info(f"Schema path: {schema_path}")
         conn = sqlite3.connect(db)
         cursor = conn.cursor()
         with open(schema_path, "r") as f:
             schema_sql = f.read()
-            logger.debug(schema_sql)
+            logger.info(schema_sql)
             cursor.executescript(schema_sql)
         conn.commit()
         conn.close()
-        logger.debug("Initialized the database")
+        logger.info("Initialized the database")
+        rag_db = RagDb()
+        logger.info(f"Vector Database (sqlite-vec)=> vec_version={rag_db.version()}")
 
     @staticmethod
     def is_sqlite3_db(filename):
@@ -117,3 +117,7 @@ class RagDb:
             logger.debug(f"Dropped the database:{os.path.abspath(db)}.")
         else:
             logger.debug(f"Database {os.path.abspath(db)} not found.")
+
+    def version(self):
+        (vec_version,) = self.cur.execute("select vec_version()").fetchone()
+        return vec_version

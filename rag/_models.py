@@ -1,5 +1,5 @@
 from langchain_ollama import OllamaEmbeddings, ChatOllama
-from rag.config import appConfig
+from rag._config import appConfig
 import ollama
 
 
@@ -19,7 +19,7 @@ class Models:
         )
 
     @staticmethod
-    def pull_model(name: str appConfig.get("OLLAMA_MODEL")):
+    def pull_model(name: str = appConfig.get("OLLAMA_MODEL")):
         ollama.pull(name)
 
     @staticmethod
