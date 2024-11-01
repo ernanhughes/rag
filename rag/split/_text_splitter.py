@@ -1,16 +1,14 @@
-import random
-import re
-from collections import namedtuple
-
 import numpy as np
 from numpy.linalg import norm
+import re
+import random
+from collections import namedtuple
 
-Segmentation = namedtuple('Segmentation',
-                          'total splits gains min_gain optimal')
+Segmentation = namedtuple("Segmentation", "total splits gains min_gain optimal")
 
 
 class TextSplitter:
-    def __init__(self, breaking_chars='.!?'):
+    def __init__(self, breaking_chars=".!?"):
         assert len(breaking_chars) > 0
         self.breaking_chars = breaking_chars
         self.prog = re.compile(r".+?[{}]\W+".format(breaking_chars), re.DOTALL)
@@ -46,11 +44,11 @@ class TextSplitter:
                     penalties.append(seg.min_gain)
         if len(penalties) > 0:
             return np.mean(penalties)
-        raise ValueError('All documents too short for given segment_len.')
+        raise ValueError("All documents too short for given segment_len.")
 
-    def P_k(self, splits_ref, splits_hyp, N):
+    def p_k(self, splits_ref, splits_hyp, N):
         """
-        Metric to evaluate reference splits against hypothesised splits.
+        Metric to evaluate reference splits against hypothesized splits.
         Lower is better.
         `N` is the text length.
         """
@@ -122,7 +120,7 @@ class TextSplitter:
         while True:
             split = np.argmax(score)
 
-            if score[split] == - np.inf:
+            if score[split] == -np.inf:
                 break
 
             cut_l = max([c for c in cuts if c < split])
@@ -144,9 +142,11 @@ class TextSplitter:
 
             # differential changes to score arrays
             score_l[split:cut_r] = norm(
-                cumvecs[split:cut_r, :] - cumvecs[split, :], axis=1, ord=2)
+                cumvecs[split:cut_r, :] - cumvecs[split, :], axis=1, ord=2
+            )
             score_r[cut_l:split] = norm(
-                cumvecs[split, :] - cumvecs[cut_l:split, :], axis=1, ord=2)
+                cumvecs[split, :] - cumvecs[cut_l:split, :], axis=1, ord=2
+            )
 
             # adding following constant not necessary, only for score semantics
             score_out += split_gain
@@ -162,16 +162,19 @@ class TextSplitter:
         if penalty is None:
             total = None
         else:
-            total = sum(
-                norm(cumvecs[l, :] - cumvecs[r, :], ord=2)
-                for l, r in zip(cuts[: -1], cuts[1:])) - len(splits) * penalty
+            total = (
+                sum(
+                    norm(cumvecs[l, :] - cumvecs[r, :], ord=2)
+                    for l, r in zip(cuts[:-1], cuts[1:])
+                )
+                - len(splits) * penalty
+            )
         gains = []
         for beg, cen, end in zip(cuts[:-2], cuts[1:-1], cuts[2:]):
             no_split_score = norm(cumvecs[end, :] - cumvecs[beg, :], ord=2)
             gains.append(segscore[beg] + segscore[cen] - no_split_score)
 
-        return Segmentation(total, splits, gains,
-                            min_gain=min_gain, optimal=None)
+        return Segmentation(total, splits, gains, min_gain=min_gain, optimal=None)
 
     def split_optimal(self, docmat, penalty, seg_limit=None):
         """
@@ -187,7 +190,7 @@ class TextSplitter:
         `ptr` is a backtracking pointer to determine the splits made while
         forward accumulating the highest score in the score matrix.
         """
-        L, dim = docmat.shape
+        L, _ = docmat.shape
         lim = L if seg_limit is None else seg_limit
         assert lim > 0
         assert penalty > 0
@@ -197,14 +200,14 @@ class TextSplitter:
         ptr = np.zeros(L, dtype=np.int32)
 
         for i in range(L):
-            score_so_far = colmax[i - 1] if i > 0 else 0.
+            score_so_far = colmax[i - 1] if i > 0 else 0.0
 
-            ctxvecs = np.cumsum(docmat[i:i + lim, :], axis=0)
+            ctxvecs = np.cumsum(docmat[i : i + lim, :], axis=0)
             winsz = ctxvecs.shape[0]
             score = norm(ctxvecs, axis=1, ord=2)
             acc[i, :winsz] = score_so_far - penalty + score
 
-            deltas = np.where(acc[i, :winsz] > colmax[i:i + lim])[0]
+            deltas = np.nonzero(acc[i, :winsz] > colmax[i : i + lim])[0]
             js = i + deltas
             colmax[js] = acc[i, deltas]
             ptr[js] = i
@@ -219,8 +222,7 @@ class TextSplitter:
 
         total = colmax[-1] + penalty
 
-        return Segmentation(total, splits, gains,
-                            min_gain=None, optimal=optimal)
+        return Segmentation(total, splits, gains, min_gain=None, optimal=optimal)
 
     def get_total(self, docmat, splits, penalty):
         """
@@ -229,9 +231,13 @@ class TextSplitter:
         L, dim = docmat.shape
         cuts = [0] + list(splits) + [L]
         cumvecs = np.cumsum(np.vstack((np.zeros((1, dim)), docmat)), axis=0)
-        return sum(
-            norm(cumvecs[l, :] - cumvecs[r, :], ord=2)
-            for l, r in zip(cuts[:-1], cuts[1:])) - len(splits) * penalty
+        return (
+            sum(
+                norm(cumvecs[l, :] - cumvecs[r, :], ord=2)
+                for l, r in zip(cuts[:-1], cuts[1:])
+            )
+            - len(splits) * penalty
+        )
 
     def get_gains(self, docmat, splits, width=None):
         """
@@ -246,11 +252,15 @@ class TextSplitter:
             if width is not None and width > 0:
                 beg, end = max(cen - width, 0), min(cen + width, L)
 
-            slice_l, slice_r, slice_t = [slice(beg, cen),  # left context
-                                         slice(cen, end),  # right context
-                                         slice(beg, end)]  # total context
+            slice_l, slice_r, slice_t = [
+                slice(beg, cen),  # left context
+                slice(cen, end),  # right context
+                slice(beg, end),
+            ]  # total context
 
-            gains.append(norm(docmat[slice_l, :].sum(axis=0), ord=2) +
-                         norm(docmat[slice_r, :].sum(axis=0), ord=2) -
-                         norm(docmat[slice_t, :].sum(axis=0), ord=2))
+            gains.append(
+                norm(docmat[slice_l, :].sum(axis=0), ord=2)
+                + norm(docmat[slice_r, :].sum(axis=0), ord=2)
+                - norm(docmat[slice_t, :].sum(axis=0), ord=2)
+            )
         return gains

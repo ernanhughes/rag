@@ -2,8 +2,10 @@ import logging
 import os
 import sqlite3
 from sqlite3 import connect
+from typing import Sequence
 
 import sqlite_vec
+from sqlite_vec import serialize_float32
 
 from rag._config import appConfig
 from rag._utils import compute_file_hash
@@ -20,6 +22,7 @@ class RagDb:
         self.cn.enable_load_extension(True)
         sqlite_vec.load(self.cn)
         self.cn.enable_load_extension(False)
+        logger.info(f"Sqlite3 version: {sqlite3.sqlite_version} sqlite_vec version: {self.version()}")
 
     def insert_document(self, file_path: str):
         file_hash = compute_file_hash(file_path)
@@ -35,7 +38,7 @@ class RagDb:
     def contains_document(self, file_path: str):
         file_hash = compute_file_hash(file_path)
         self.cur.execute(
-            "SELECT 1 FROM DOCUMENT WHERE file_hash = ?",
+            "SELECT 1 FROM DOCUMENT WHERE file_hash = ? AND status = 'INGESTED'",
             (file_hash,)
         )
         row = self.cur.fetchone()
@@ -45,12 +48,22 @@ class RagDb:
 
     def insert_document_text(self, id: str, data: str):
         self.cur.execute(
-            "INSERT INTO DOCUMENT_TEXT_CHUNK(document_id, data) VALUES (:1,:2) RETURNING id",
-            (id, data),
+            "INSERT INTO DOCUMENT_TEXT_CHUNK(document_id, data, text_length) VALUES (:1,:2,:3) RETURNING id",
+            (id, data, len(data)),
         )
         row = self.cur.fetchone()
         self.cn.commit()
         logger.info(f"Inserted document text (length {len(data)}) for {id} => {row[0]}")
+        return row[0]
+    
+    def insert_embedding(self, id: str, embedding: str):
+        self.cur.execute(
+            "INSERT INTO DOCUMENT_TEXT_CHUNK_VECTOR(document_text_id, embedding) VALUES (:1,:2) RETURNING id",
+            (id, serialize_float32(embedding)),
+        )
+        row = self.cur.fetchone()
+        self.cn.commit()
+        logger.info(f"Inserted embedding for {id} => {row[0]}")
         return row[0]
 
     def insert_chat_response(self, response: dict):
@@ -101,15 +114,14 @@ class RagDb:
         rag_db.cn.close()
         logger.info("Initialized the database")
 
-    def insert_document_embedding(self, id: str, embedding: str):
+    def insert_document_embedding(self, id: int, embedding: Sequence[float]):
+        logger.info(f"Inserting embedding for {id}")
         self.cur.execute(
-            "INSERT INTO DOCUMENT_EMBEDDING(document_text_id, embedding) VALUES (:1,:2) RETURNING id",
-            (id, embedding),
+            "INSERT INTO DOCUMENT_TEXT_CHUNK_VECTOR(rowid, embedding) VALUES (:1,:2)",
+            (id, serialize_float32(list(embedding))),
         )
-        row = self.cur.fetchone()
         self.cn.commit()
-        logger.info(f"Inserted document embedding for {id} => {row[0]}")
-        return row[0]
+        logger.info(f"Inserted document embedding for {id}")
 
 
     @staticmethod
@@ -142,3 +154,18 @@ class RagDb:
     def version(self):
         (vec_version,) = self.cur.execute("select vec_version()").fetchone()
         return vec_version
+
+    def reciprocal_rank_fusion(self, fts_results, vec_results, k=60):  
+        rank_dict = {}  
+        for rank, (id,) in enumerate(fts_results):  
+            if id not in rank_dict:  
+                rank_dict[id] = 0  
+            rank_dict[id] += 1 / (k + rank + 1)  
+        for rank, (rowid, distance) in enumerate(vec_results):  
+            if rowid not in rank_dict:  
+                rank_dict[rowid] = 0  
+            rank_dict[rowid] += 1 / (k + rank + 1)  
+    
+        # Sort by RRF score  
+        sorted_results = sorted(rank_dict.items(), key=lambda x: x[1], reverse=True)  
+        return sorted_results 

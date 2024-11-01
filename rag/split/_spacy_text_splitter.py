@@ -2,12 +2,13 @@ from typing import List
 
 import spacy
 
+from ._splitter import Splitter
 
-class SpacyTextSplitter:
+class SpacyTextSplitter(Splitter):
     def __init__(self):
         self.nlp = spacy.load("en_core_web_sm")
 
-    def split_text(self, text: str) -> List[str]:
+    def split(self, text: str) -> List[str]:
         document = self.nlp(text)
         return list(self.paragraphs(document))
 
