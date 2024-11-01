@@ -1,3 +1,4 @@
+import logging
 import os
 
 import click
@@ -5,12 +6,10 @@ from rich import print
 from rich.pretty import Pretty
 
 from rag._config import appConfig
-from rag.service._ollama_service import OllamaService
-from rag.service._ingest import IngestService
 from rag._database import RagDb
+from rag.service._ingest import IngestService
+from rag.service._ollama_service import OllamaService
 
-
-import logging
 logger = logging.getLogger(__name__)
 
 
@@ -47,6 +46,7 @@ def drop_db(db="rag.db"):
         click.echo(f"Dropped the database:{os.path.abspath(db)}.")
     else:
         click.echo(f"Database {os.path.abspath(db)} not found.")
+
 
 @click.command()
 def models():
@@ -99,4 +99,3 @@ cli.add_command(config)
 cli.add_command(chat)
 cli.add_command(models)
 cli.add_command(ingest)
-

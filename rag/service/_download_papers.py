@@ -1,11 +1,12 @@
-import requests
-import time
+import logging
 import os
+import time
+
+import requests
 
 from rag._utils import get_filename_from_url, sanitize_filename
-import logging
-logger = logging.getLogger(__name__)
 
+logger = logging.getLogger(__name__)
 
 # Parameters
 search_query = "agent"  # Replace with desired search term or topic
@@ -20,6 +21,7 @@ def fetch_arxiv_papers(search_query, max_results=5):
     response = requests.get(url)
     response.raise_for_status()
     return response.text
+
 
 def parse_paper_links(response_text):
     """Parses paper links and titles from arXiv API response XML."""
@@ -53,6 +55,7 @@ def download_paper(title, pdf_link, output_folder):
         for chunk in response.iter_content(chunk_size=1024):
             file.write(chunk)
     print(f"Downloaded: {title}")
+
 
 def main(search_query, max_results):
     # Create output folder if it doesn't exist

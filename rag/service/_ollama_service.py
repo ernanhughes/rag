@@ -1,18 +1,19 @@
+import json
+import logging
 import re
 from typing import List
 
 import ollama
 import requests
-import json
 
 from rag._config import appConfig
 
-import logging
 logger = logging.getLogger(__name__)
+
 
 class OllamaService:
     def __init__(
-        self, model: str = "llama3.1", window_size: int = 128000, overlap: int = 1000
+            self, model: str = "llama3.1", window_size: int = 128000, overlap: int = 1000
     ):
         self.model = model
         self.window_size = window_size
@@ -51,7 +52,7 @@ class OllamaService:
         step = self.window_size - self.overlap
         # Ensure the range covers the entire length of the tokens
         chunks = [
-            " ".join(tokens[i : i + self.window_size])
+            " ".join(tokens[i: i + self.window_size])
             for i in range(0, len(tokens) - self.window_size + step, step)
         ]
         logger.info(chunks)
@@ -74,7 +75,7 @@ class OllamaService:
             # Send a GET request to retrieve the list of installed models
             url = f"{ollama_url}/api/tags"
             response = requests.get(url)
-            
+
             # Check if the request was successful
             if response.status_code == 200:
                 # Parse the JSON response
@@ -88,9 +89,10 @@ class OllamaService:
                 logger.error(f"Failed to retrieve models. Status code: {response.status_code}")
                 logger.error(f"Response: {response.text}")
                 return []
-        
+
         except requests.ConnectionError:
-            logger.error("Failed to connect to the Ollama server. Make sure it is running locally and the URL is correct.")
+            logger.error(
+                "Failed to connect to the Ollama server. Make sure it is running locally and the URL is correct.")
             return []
         except json.JSONDecodeError:
             logger.error("Failed to parse JSON response from Ollama server.")

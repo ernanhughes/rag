@@ -1,7 +1,7 @@
-import os
-import os.path
 import logging
 import logging.config
+import os
+import os.path
 from pathlib import Path
 from tempfile import gettempdir
 from typing import Any
@@ -30,6 +30,9 @@ DEFAULT_CONFIG = {
     "OLLAMA_MODEL": os.environ.get("OLLAMA_MODEL", "llama3.2"),
     "OLLAMA_EMBEDDING_MODEL": os.environ.get(
         "OLLAMA_EMBEDDING_MODEL", "mxbai-embed-large"
+    ),
+    "OLLAMA_EMBEDDING_DIMENSIONS": os.environ.get(
+        "OLLAMA_EMBEDDING_DIMENSIONS", 1024
     ),
     "DATA_DIR": Path(get_default_data_dir("rag")),
     "LOG_FILE": str(os.environ.get("LOG_FILENAME", "rag.log")),
@@ -122,4 +125,3 @@ class Config(dict):
 
 
 appConfig = Config(SUMMARIZER_CONFIG_FOLDER, **DEFAULT_CONFIG)
-

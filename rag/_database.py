@@ -1,12 +1,12 @@
+import logging
 import os
 import sqlite3
-from dataclasses import asdict
 from sqlite3 import connect
+
 import sqlite_vec
+
 from rag._config import appConfig
 from rag._utils import compute_file_hash
-
-import logging
 
 logger = logging.getLogger(__name__)
 
@@ -24,21 +24,34 @@ class RagDb:
     def insert_document(self, file_path: str):
         file_hash = compute_file_hash(file_path)
         self.cur.execute(
-            "INSERT INTO DOCUMENT(file_path, file_hash) VALUES (:1,:2)",
+            "INSERT INTO DOCUMENT(file_path, file_hash) VALUES (:1,:2) RETURNING id",
             (file_path, file_hash),
         )
+        row = self.cur.fetchone()
         self.cn.commit()
-        logger.debug(f"Inserted file {file_path}")
-        return self.cur.lastrowid
+        logger.debug(f"Inserted file {file_path} => {row[0]}")
+        return row[0]
+
+    def contains_document(self, file_path: str):
+        file_hash = compute_file_hash(file_path)
+        self.cur.execute(
+            "SELECT 1 FROM DOCUMENT WHERE file_hash = ?",
+            (file_hash,)
+        )
+        row = self.cur.fetchone()
+        result = row is not None
+        logger.debug(f"File {file_path} hash {file_hash} exists in the database: {result}")
+        return result
 
     def insert_document_text(self, id: str, data: str):
         self.cur.execute(
-            "INSERT INTO DOCUMENT_TEXT(document_id, data) VALUES (:1,:2)",
+            "INSERT INTO DOCUMENT_TEXT_CHUNK(document_id, data) VALUES (:1,:2) RETURNING id",
             (id, data),
         )
+        row = self.cur.fetchone()
         self.cn.commit()
-        logger.info(f"Inserted document text (length {len(data)}) for {id}")
-
+        logger.info(f"Inserted document text (length {len(data)}) for {id} => {row[0]}")
+        return row[0]
 
     def insert_chat_response(self, response: dict):
         sql = """
@@ -71,25 +84,33 @@ class RagDb:
 
     @staticmethod
     def init_db(
-        db: str = appConfig.get("DATABASE_PATH"),
-        schema: str = appConfig.get("SCHEMA_FILE"),
+            db: str = appConfig.get("DATABASE_PATH"),
+            schema: str = appConfig.get("SCHEMA_FILE"),
     ):
         logger.info("Initializing the database.....")
         base_dir = os.path.abspath(os.path.dirname(__file__))
         schema_path = os.path.join(base_dir, schema)
         logger.info(f"Db path: {db}")
         logger.info(f"Schema path: {schema_path}")
-        conn = sqlite3.connect(db)
-        cursor = conn.cursor()
+        rag_db = RagDb(db)
         with open(schema_path, "r") as f:
             schema_sql = f.read()
             logger.info(schema_sql)
-            cursor.executescript(schema_sql)
-        conn.commit()
-        conn.close()
+            rag_db.cur.executescript(schema_sql)
+        rag_db.cn.commit()
+        rag_db.cn.close()
         logger.info("Initialized the database")
-        rag_db = RagDb()
-        logger.info(f"Vector Database (sqlite-vec)=> vec_version={rag_db.version()}")
+
+    def insert_document_embedding(self, id: str, embedding: str):
+        self.cur.execute(
+            "INSERT INTO DOCUMENT_EMBEDDING(document_text_id, embedding) VALUES (:1,:2) RETURNING id",
+            (id, embedding),
+        )
+        row = self.cur.fetchone()
+        self.cn.commit()
+        logger.info(f"Inserted document embedding for {id} => {row[0]}")
+        return row[0]
+
 
     @staticmethod
     def is_sqlite3_db(filename):

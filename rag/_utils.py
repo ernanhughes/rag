@@ -1,9 +1,9 @@
+import hashlib
 import os
+import re
 import sys
 from pathlib import Path
-import re
 from urllib.parse import urlparse
-import hashlib
 
 
 def get_default_data_dir(app_name: str) -> Path:

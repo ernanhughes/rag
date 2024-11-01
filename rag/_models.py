@@ -1,14 +1,15 @@
-from langchain_ollama import OllamaEmbeddings, ChatOllama
-from rag._config import appConfig
 import ollama
+from langchain_ollama import OllamaEmbeddings, ChatOllama
+
+from rag._config import appConfig
 
 
 class Models:
     def __init__(
-        self,
-        ollama_url: str = appConfig.get("OLLAMA_URL"),
-        ollama_model: str = appConfig.get("OLLAMA_MODEL"),
-        ollama_embedding_model: str = appConfig.get("OLLAMA_EMBEDDING_MODEL"),
+            self,
+            ollama_url: str = appConfig.get("OLLAMA_URL"),
+            ollama_model: str = appConfig.get("OLLAMA_MODEL"),
+            ollama_embedding_model: str = appConfig.get("OLLAMA_EMBEDDING_MODEL"),
     ):
         self.ollama_url = ollama_url
         self.ollama_model = ollama_model
