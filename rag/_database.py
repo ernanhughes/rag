@@ -56,6 +56,16 @@ class RagDb:
         logger.info(f"Inserted document text (length {len(data)}) for {id} => {row[0]}")
         return row[0]
     
+    def insert_document_text_fts(self, chunk_id: int, data: str):
+        self.cur.execute(
+            "INSERT INTO DOCUMENT_TEXT_CHUNK_FTS(chunk_id, data) VALUES (:1,:2,:3) RETURNING id",
+            (chunk_id, data),
+        )
+        row = self.cur.fetchone()
+        self.cn.commit()
+        logger.info(f"Inserted document fts text (length {len(data)}) for chunk {chunk_id} => {row[0]}")
+        return row[0]
+    
     def insert_embedding(self, id: str, embedding: str):
         self.cur.execute(
             "INSERT INTO DOCUMENT_TEXT_CHUNK_VECTOR(document_text_id, embedding) VALUES (:1,:2) RETURNING id",
@@ -65,6 +75,17 @@ class RagDb:
         self.cn.commit()
         logger.info(f"Inserted embedding for {id} => {row[0]}")
         return row[0]
+
+
+    def search_embeddings(self, query: str, limit: int = 10):
+        self.cur.execute(
+            """SELECT rowid, distance FROM DOCUMENT_TEXT_CHUNK_VECTOR 
+            WHERE embedding MATCH ? ORDER BY distance LIMIT ?""",
+            ([serialize_f32(query)], limit),
+        )
+        rows = self.cur.fetchall()
+        logger.info(f"Found embeddings for {query} => {len(rows)} rows")
+        return rows
 
     def insert_chat_response(self, response: dict):
         sql = """
@@ -114,14 +135,14 @@ class RagDb:
         rag_db.cn.close()
         logger.info("Initialized the database")
 
-    def insert_document_embedding(self, id: int, embedding: Sequence[float]):
-        logger.info(f"Inserting embedding for {id}")
+    def insert_document_embedding(self, chunk_id: int, embedding: Sequence[float]):
+        logger.info(f"Inserting embedding for {chunk_id}")
         self.cur.execute(
             "INSERT INTO DOCUMENT_TEXT_CHUNK_VECTOR(rowid, embedding) VALUES (:1,:2)",
-            (id, serialize_float32(list(embedding))),
+            (chunk_id, serialize_float32(list(embedding))),
         )
         self.cn.commit()
-        logger.info(f"Inserted document embedding for {id}")
+        logger.info(f"Inserted document embedding for {chunk_id}")
 
 
     @staticmethod
@@ -169,3 +190,55 @@ class RagDb:
         # Sort by RRF score  
         sorted_results = sorted(rank_dict.items(), key=lambda x: x[1], reverse=True)  
         return sorted_results 
+    
+
+class GraphDB:
+    def __init__(self, db_path='data/graph_database.sqlite'):
+        if not db_path:
+            raise ValueError(
+                "Database path must be provided to initialize the DatabaseConnection.")
+        self.db_path = db_path
+        self.conn = sqlite3.connect(self.db_path)
+        # Use WAL mode for better performance
+        self.conn.execute('PRAGMA journal_mode=WAL;')
+        self.initialize_schema()
+
+    def initialize_schema(self):
+        with self.conn:
+            # Create nodes and edges tables if they don't exist
+            self.conn.execute('''
+                CREATE TABLE IF NOT EXISTS nodes (
+                    id TEXT PRIMARY KEY,
+                    properties TEXT
+                )
+            ''')
+
+            self.conn.execute('''
+                CREATE TABLE IF NOT EXISTS edges (
+                    source TEXT,
+                    target TEXT,
+                    relationship TEXT,
+                    weight REAL,
+                    PRIMARY KEY (source, target, relationship),
+                    FOREIGN KEY (source) REFERENCES nodes(id),
+                    FOREIGN KEY (target) REFERENCES nodes(id)
+                )
+            ''')
+
+            self.conn.execute('''
+                CREATE INDEX IF NOT EXISTS source_idx ON edges(source)
+            ''')
+            self.conn.execute('''
+                CREATE INDEX IF NOT EXISTS target_idx ON edges(target)
+            ''')
+
+    def close(self):
+        self.conn.close()
+
+    def get_session(self):
+        return self.conn
+
+    def clear_database(self):
+        with self.conn:
+            self.conn.execute("DELETE FROM edges")
+            self.conn.execute("DELETE FROM nodes")

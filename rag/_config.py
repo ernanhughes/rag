@@ -25,7 +25,9 @@ DEFAULT_CONFIG = {
     "USE_DATABASE": "false",
     "SCHEMA_FILE": "schema.sql",
     "DATABASE_PATH": os.environ.get("DATABASE_PATH", "rag.db"),
+    "GRAPH_DATABASE_PATH": os.environ.get("GRAPH_DATABASE_PATH", "rag-graph.db"),
     "DATABASE_URL": os.environ.get("DATABASE_URL", "sqlite:///rag.db"),
+    "GRAPH_DATABASE_URL": os.environ.get("GRAPH_DATABASE_URL", "sqlite:///rag-graph.db"),
     "OLLAMA_URL": os.environ.get("OLLAMA_URL", "http://127.0.0.1:11434"),
     "OLLAMA_MODEL": os.environ.get("OLLAMA_MODEL", "llama3.2"),
     "OLLAMA_EMBEDDING_MODEL": os.environ.get(
@@ -36,12 +38,14 @@ DEFAULT_CONFIG = {
     ),
     "DATA_DIR": Path(get_default_data_dir("rag")),
     "LOG_FILE": str(os.environ.get("LOG_FILENAME", "rag.log")),
+    "LOG_LEVEL": str(os.environ.get("LOG_LEVEL", "INFO")),
 }
 
 logging_configured = False
 
 
-def setup_logging(default_level=logging.INFO):
+def setup_logging(default_level=DEFAULT_CONFIG["LOG_LEVEL"],
+                  log_file=DEFAULT_CONFIG["LOG_FILE"]):
     global logging_configured
     if logging_configured:
         return
@@ -62,7 +66,7 @@ def setup_logging(default_level=logging.INFO):
             "file": {
                 "level": "DEBUG",
                 "class": "logging.FileHandler",
-                "filename": "app.log",
+                "filename": log_file,
                 "formatter": "standard",
             },
         },
