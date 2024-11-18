@@ -16,7 +16,7 @@ def get_default_data_dir(app_name: str) -> Path:
 
     :param app_name: Application Name will be used to specify directory
     :type app_name: str
-    :return: User Data Path
+    :return: User Data Directory
     :rtype: Path
     """
     home = Path.home()

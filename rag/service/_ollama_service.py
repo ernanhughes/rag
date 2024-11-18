@@ -19,7 +19,8 @@ class OllamaService:
         self.window_size = window_size
         self.overlap = overlap
 
-    def chat_with_model(self, model: str, messages):
+    @staticmethod
+    def chat_with_model(model: str, messages):
         response = ollama.chat(model, messages)
         logger.info(response)
         return response

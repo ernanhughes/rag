@@ -55,7 +55,7 @@ class RagDb:
         self.cn.commit()
         logger.info(f"Inserted document text (length {len(data)}) for {id} => {row[0]}")
         return row[0]
-    
+
     def insert_document_text_fts(self, chunk_id: int, data: str):
         self.cur.execute(
             "INSERT INTO DOCUMENT_TEXT_CHUNK_FTS(chunk_id, data) VALUES (:1,:2,:3) RETURNING id",
@@ -65,7 +65,7 @@ class RagDb:
         self.cn.commit()
         logger.info(f"Inserted document fts text (length {len(data)}) for chunk {chunk_id} => {row[0]}")
         return row[0]
-    
+
     def insert_embedding(self, id: str, embedding: str):
         self.cur.execute(
             "INSERT INTO DOCUMENT_TEXT_CHUNK_VECTOR(document_text_id, embedding) VALUES (:1,:2) RETURNING id",
@@ -75,7 +75,6 @@ class RagDb:
         self.cn.commit()
         logger.info(f"Inserted embedding for {id} => {row[0]}")
         return row[0]
-
 
     def search_embeddings(self, query: str, limit: int = 10):
         self.cur.execute(
@@ -144,7 +143,6 @@ class RagDb:
         self.cn.commit()
         logger.info(f"Inserted document embedding for {chunk_id}")
 
-
     @staticmethod
     def is_sqlite3_db(filename):
         from os.path import isfile, getsize
@@ -176,21 +174,22 @@ class RagDb:
         (vec_version,) = self.cur.execute("select vec_version()").fetchone()
         return vec_version
 
-    def reciprocal_rank_fusion(self, fts_results, vec_results, k=60):  
-        rank_dict = {}  
-        for rank, (id,) in enumerate(fts_results):  
-            if id not in rank_dict:  
-                rank_dict[id] = 0  
-            rank_dict[id] += 1 / (k + rank + 1)  
-        for rank, (rowid, distance) in enumerate(vec_results):  
-            if rowid not in rank_dict:  
-                rank_dict[rowid] = 0  
-            rank_dict[rowid] += 1 / (k + rank + 1)  
-    
-        # Sort by RRF score  
-        sorted_results = sorted(rank_dict.items(), key=lambda x: x[1], reverse=True)  
-        return sorted_results 
-    
+    @staticmethod
+    def reciprocal_rank_fusion(fts_results, vec_results, k=60):
+        rank_dict = {}
+        for rank, (id,) in enumerate(fts_results):
+            if id not in rank_dict:
+                rank_dict[id] = 0
+            rank_dict[id] += 1 / (k + rank + 1)
+        for rank, (rowid, distance) in enumerate(vec_results):
+            if rowid not in rank_dict:
+                rank_dict[rowid] = 0
+            rank_dict[rowid] += 1 / (k + rank + 1)
+
+            # Sort by RRF score
+        sorted_results = sorted(rank_dict.items(), key=lambda x: x[1], reverse=True)
+        return sorted_results
+
 
 class GraphDB:
     def __init__(self, db_path='data/graph_database.sqlite'):

@@ -5,9 +5,8 @@ from langchain_community.document_loaders import PyPDFLoader
 
 from rag._database import RagDb
 from rag._models import Models
-from rag.split._spacy_text_splitter import SpacyTextSplitter
 from rag.service._embedding import EmbeddingService
-from sqlite_vec import serialize_float32
+from rag.split._chonkie import SPDMSplitter
 
 
 logger = logging.getLogger(__name__)
@@ -36,7 +35,7 @@ class IngestService:
         self.rag_db.insert_document_text(file_id, pdf_text)
         logger.info(f"Inserted document text for file {file_path}")
 
-        text_splitter = SpacyTextSplitter()
+        text_splitter = SPDMSplitter()
         for doc in documents:
             chunks = text_splitter.split(doc.page_content)
             logger.info(f"Splitted document into {len(chunks)} chunks")
@@ -47,8 +46,7 @@ class IngestService:
                 logger.info(f"Created embedding for chunk {chunk_id}")
                 self.rag_db.insert_document_embedding(chunk_id, embedding)
 
-  
-    def ingest_folder(self, data_folder: str):  
+    def ingest_folder(self, data_folder: str):
         for filename in os.listdir(data_folder):
             file_path = os.path.join(data_folder, filename)
             if not self.rag_db.contains_document(file_path):
